@@ -204,3 +204,57 @@
   )
 )
 
+;; Revoke verification
+(define-public (revoke-verification (tracking-id uint) (check-type uint))
+  (begin
+    (asserts! (is-valid-tracking-id tracking-id) ERR_INVALID_ID)
+    (asserts! (is-valid-check-type check-type) ERR_INVALID_CHECK)
+    
+    (let
+      (
+        (verification (unwrap! 
+          (map-get? id-verifications {tracking-id: tracking-id, check-type: check-type})
+          ERR_INVALID_CHECK
+        ))
+      )
+      (asserts! 
+        (or
+          (is-system-admin tx-sender)
+          (is-eq (get verifier verification) tx-sender)
+        )
+        ERR_NOT_AUTHORIZED
+      )
+      
+      (map-set id-verifications
+        {tracking-id: tracking-id, check-type: check-type}
+        (merge verification {valid: false})
+      )
+      (ok true)
+    )
+  )
+)
+
+;; Get ID history
+(define-read-only (get-id-history (tracking-id uint))
+  (let 
+    (
+      (id (unwrap! (map-get? id-data {tracking-id: tracking-id}) ERR_INVALID_ID))
+    )
+    (ok (get history id))
+  )
+)
+
+;; Get current ID status
+(define-read-only (get-id-status (tracking-id uint))
+  (let 
+    (
+      (id (unwrap! (map-get? id-data {tracking-id: tracking-id}) ERR_INVALID_ID))
+    )
+    (ok (get current-status id))
+  )
+)
+
+;; Get verification details
+(define-read-only (get-verification-details (tracking-id uint) (check-type uint))
+  (ok (map-get? id-verifications {tracking-id: tracking-id, check-type: check-type}))
+)
