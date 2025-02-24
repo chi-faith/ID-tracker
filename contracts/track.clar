@@ -151,3 +151,56 @@
   )
 )
 
+;; Add authorized verifier
+(define-public (add-authorized-verifier (verifier principal) (check-type uint))
+  (begin
+    (asserts! (is-system-admin tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (is-valid-check-type check-type) ERR_INVALID_CHECK)
+    
+    (map-set authorized-verifiers
+      {verifier: verifier, check-type: check-type}
+      {authorized: true}
+    )
+    (ok true)
+  )
+)
+
+;; Add verification check
+(define-public (add-verification (tracking-id uint) (check-type uint))
+  (begin
+    (asserts! (is-valid-tracking-id tracking-id) ERR_INVALID_ID)
+    (asserts! (is-valid-check-type check-type) ERR_INVALID_CHECK)
+    (asserts! (is-authorized-verifier tx-sender check-type) ERR_NOT_AUTHORIZED)
+    
+    (asserts! 
+      (is-none 
+        (map-get? id-verifications {tracking-id: tracking-id, check-type: check-type})
+      )
+      ERR_CHECK_EXISTS
+    )
+    
+    (map-set id-verifications
+      {tracking-id: tracking-id, check-type: check-type}
+      {
+        verifier: tx-sender,
+        timestamp: block-height,
+        valid: true
+      }
+    )
+    (ok true)
+  )
+)
+
+;; Verify ID check
+(define-read-only (verify-check (tracking-id uint) (check-type uint))
+  (let
+    (
+      (verification (unwrap! 
+        (map-get? id-verifications {tracking-id: tracking-id, check-type: check-type})
+        ERR_INVALID_CHECK
+      ))
+    )
+    (ok (get valid verification))
+  )
+)
+
